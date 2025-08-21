@@ -1,81 +1,155 @@
 require("dotenv").config();
-const mongo = require("mongoose");
 const express = require("express");
 const session = require("express-session");
-const { default: mongoose } = require("mongoose")
 const bodyParser = require("body-parser");
+const bcrypt = require("bcrypt"); // Import bcrypt for password hashing
 
 const authRoutes = require("./server/routes/auth");
 const DB = require("./model/connectionSQL");
-const loginRoutes = require("./server/routes/login");
-
-
 
 const app = express();
 const PORT = 5000 || process.env.PORT;
-const MONGOURI = process.env.MONGO_URI
 
+// Middleware
 app.use(express.static("public"));
 app.use(bodyParser.json());
 app.use(express.urlencoded({ extended: true }));
-app.use("/", loginRoutes);
-app.use("/", authRoutes);
-app.use(session({
-    secret: process.env.SESSION_SECRET,
+
+// Configure session middleware
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || "default_secret", // Ensure SESSION_SECRET is set in .env
     resave: false,
     saveUninitialized: false,
-    cookie: { secure: false }
-  }));
+    cookie: { secure: false }, // Set secure: true if using HTTPS
+  })
+);
 
-
-app.set("layout", "layouts/main");
+// Set view engine
 app.set("view engine", "ejs");
 
+// Middleware to protect routes
+function requireLogin(req, res, next) {
+  if (!req.session.user) {
+    return res.redirect("/"); // Redirect to the home page if not logged in
+  }
+  next();
+}
+
+// Routes
+app.use("/", authRoutes);
 
 app.get("", (req, res) => {
-    res.render("login");
+  res.render("login");
 });
 
-app.get("/dashboard", (req, res) => {
-    if (!req.session.user) {
-      return res.redirect("/login");
-    }
-    res.render("dashboard", { user: req.session.user });
-  });
-
-app.listen(PORT, () => {
-    console.log(`App is listening ${PORT}`);
+app.get("/register", (req, res) => {
+  res.render("register");
 });
 
-
-
-mongoose.connect(MONGOURI).then(()=> {
-    console.log("databesis connected fjdklaöfjkdla");
-})
-.catch((error) => console.log(error));
-
-
-const userSchema = new mongoose.Schema({
-    name: String,
-    age: Number,
+// Protected route: Dashboard
+app.get("/dashboard", requireLogin, (req, res) => {
+  res.render("dashboard", { user: req.session.user });
 });
 
-const userModel = mongoose.model("users", userSchema);
-
-app.get("/getUsers", async(req, res) => {
-    const usersData = await userModel.find();
-    res.json(usersData);
+// Change password route
+app.get("/change-password", requireLogin, (req, res) => {
+  res.render("change-password");
 });
 
-function requireLogin(req, res, next) {
-    if (!req.session.user) {
-      return res.redirect("/login");
-    }
-    next();
-};
+app.post("/change-password", requireLogin, async (req, res) => {
+  const { old_password, new_password } = req.body;
 
-  app.get("/logout", (req, res) => {
-    req.session.destroy(() => {
-      res.redirect("/login");
+  const sql = "SELECT * FROM users WHERE user_id = ?";
+  DB.get(sql, [req.session.user.id], async (err, row) => {
+    if (err) return res.status(500).send("Database error");
+
+    const match = await bcrypt.compare(old_password, row.user_pass);
+    if (!match) return res.status(400).send("Old password is incorrect");
+
+    const hashedPassword = await bcrypt.hash(new_password, 10);
+    const updateSql = "UPDATE users SET user_pass = ? WHERE user_id = ?";
+    DB.run(updateSql, [hashedPassword, req.session.user.id], (err) => {
+      if (err) return res.status(500).send("Failed to update password");
+
+      // Destroy the session and log out the user
+      req.session.destroy(() => {
+        res.redirect("/"); // Redirect to the home page after logout
+      });
     });
   });
+});
+
+// Logout route
+app.get("/logout", (req, res) => {
+  req.session.destroy(() => {
+    res.redirect("/"); // Redirect to the home page after logout
+  });
+});
+
+app.get("/request-data", requireLogin, (req, res) => {
+  const sql = "SELECT user_id, user_name, created_at, user_mode FROM users WHERE user_id = ?";
+  DB.get(sql, [req.session.user.id], (err, row) => {
+    if (err) {
+      console.error("Database error:", err.message); // Log the error for debugging
+      return res.status(500).send("Database error");
+    }
+    if (!row) {
+      return res.status(404).send("User not found");
+    }
+    res.render("account-data", { user: row });
+  });
+});
+
+app.post("/delete-account", requireLogin, (req, res) => {
+  const sql = "DELETE FROM users WHERE user_id = ?";
+  DB.run(sql, [req.session.user.id], (err) => {
+    if (err) return res.status(500).send("Failed to delete account");
+
+    req.session.destroy(() => {
+      res.redirect("/"); // Redirect to the home page after account deletion
+    });
+  });
+});
+
+// Fetch and display todos
+app.get("/todo", requireLogin, (req, res) => {
+  const sql = "SELECT * FROM todos WHERE user_id = ?";
+  DB.all(sql, [req.session.user.id], (err, rows) => {
+    if (err) {
+      console.error("Database error:", err.message);
+      return res.status(500).send("Database error");
+    }
+    res.render("todo", { user: req.session.user, todos: rows, page: "todo" });
+  });
+});
+
+// Add a new todo
+app.post("/todo/add", requireLogin, (req, res) => {
+  const { task } = req.body;
+  const sql = "INSERT INTO todos (user_id, task) VALUES (?, ?)";
+  DB.run(sql, [req.session.user.id, task], (err) => {
+    if (err) {
+      console.error("Database error:", err.message);
+      return res.status(500).send("Failed to add task");
+    }
+    res.redirect("/todo");
+  });
+});
+
+// Delete a todo
+app.post("/todo/delete/:id", requireLogin, (req, res) => {
+  const { id } = req.params;
+  const sql = "DELETE FROM todos WHERE id = ? AND user_id = ?";
+  DB.run(sql, [id, req.session.user.id], (err) => {
+    if (err) {
+      console.error("Database error:", err.message);
+      return res.status(500).send("Failed to delete task");
+    }
+    res.redirect("/todo");
+  });
+});
+
+app.listen(PORT, () => {
+  console.log(`App is listening on port ${PORT}`);
+});
