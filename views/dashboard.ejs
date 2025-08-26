@@ -11,7 +11,6 @@
       <h1 class="text-2xl font-bold text-center text-gray-800 mb-6">Welcome, <%= user.name %>!</h1>
 
       <div class="space-y-6">
-        <!-- Change Password Button -->
         <form action="/change-password" method="GET">
           <button 
             type="submit" 
@@ -19,8 +18,6 @@
             Change Password
           </button>
         </form>
-
-        <!-- Request Account Data Button -->
         <form action="/request-data" method="GET">
           <button 
             type="submit" 
@@ -28,19 +25,17 @@
             Request Account Data
           </button>
         </form>
-
-        <!-- Delete Account Button -->
         <form action="/delete-account" method="POST">
           <button 
+            id="delete_account"
             type="submit" 
             class="w-full bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 transition">
             Delete Account
           </button>
         </form>
-
-        <!-- Todo App Button -->
         <form action="/todo" method="GET">
           <button 
+            id="todo_app"
             type="submit" 
             class="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition">
             Todo App

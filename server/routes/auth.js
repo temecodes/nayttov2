@@ -4,7 +4,7 @@ const router = express.Router();
 
 const DB = require("../../model/connectionSQL");
 
-// LOGIN
+
 router.post("/login", (req, res) => {
   const { user_name, user_pass } = req.body;
 
@@ -31,7 +31,6 @@ router.post("/login", (req, res) => {
   });
 });
 
-// REGISTER
 router.post("/register", async (req, res) => {
   const { user_name, user_pass } = req.body;
 

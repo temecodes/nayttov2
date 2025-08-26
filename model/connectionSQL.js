@@ -15,12 +15,10 @@ function connected(err) {
   }
   console.log("DB is already created");
 
-  // Check and add missing columns
   DB.run(`ALTER TABLE users ADD COLUMN created_at TEXT`, [], (err) => {
     if (err && !err.message.includes("duplicate column name")) {
       console.error("Error adding 'created_at' column:", err.message);
     } else if (!err) {
-      // Update existing rows with the current timestamp
       DB.run(`UPDATE users SET created_at = datetime('now') WHERE created_at IS NULL`, [], (updateErr) => {
         if (updateErr) {
           console.error("Error updating 'created_at' values:", updateErr.message);

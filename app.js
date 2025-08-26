@@ -10,33 +10,33 @@ const DB = require("./model/connectionSQL");
 const app = express();
 const PORT = 5000 || process.env.PORT;
 
-// Middleware
+
 app.use(express.static("public"));
 app.use(bodyParser.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Configure session middleware
+
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "default_secret", // Ensure SESSION_SECRET is set in .env
+    secret: process.env.SESSION_SECRET || "default_secret", 
     resave: false,
     saveUninitialized: false,
-    cookie: { secure: false }, // Set secure: true if using HTTPS
+    cookie: { secure: false }, 
   })
 );
 
-// Set view engine
+
 app.set("view engine", "ejs");
 
-// Middleware to protect routes
+
 function requireLogin(req, res, next) {
   if (!req.session.user) {
-    return res.redirect("/"); // Redirect to the home page if not logged in
+    return res.redirect("/");
   }
   next();
 }
 
-// Routes
+
 app.use("/", authRoutes);
 
 app.get("", (req, res) => {
@@ -47,12 +47,12 @@ app.get("/register", (req, res) => {
   res.render("register");
 });
 
-// Protected route: Dashboard
+
 app.get("/dashboard", requireLogin, (req, res) => {
   res.render("dashboard", { user: req.session.user });
 });
 
-// Change password route
+
 app.get("/change-password", requireLogin, (req, res) => {
   res.render("change-password");
 });
@@ -72,15 +72,14 @@ app.post("/change-password", requireLogin, async (req, res) => {
     DB.run(updateSql, [hashedPassword, req.session.user.id], (err) => {
       if (err) return res.status(500).send("Failed to update password");
 
-      // Destroy the session and log out the user
+      
       req.session.destroy(() => {
-        res.redirect("/"); // Redirect to the home page after logout
+        res.redirect("/");
       });
     });
   });
 });
 
-// Logout route
 app.get("/logout", (req, res) => {
   req.session.destroy(() => {
     res.redirect("/"); // Redirect to the home page after logout
@@ -112,7 +111,7 @@ app.post("/delete-account", requireLogin, (req, res) => {
   });
 });
 
-// Fetch and display todos
+
 app.get("/todo", requireLogin, (req, res) => {
   const sql = "SELECT * FROM todos WHERE user_id = ?";
   DB.all(sql, [req.session.user.id], (err, rows) => {
@@ -124,7 +123,7 @@ app.get("/todo", requireLogin, (req, res) => {
   });
 });
 
-// Add a new todo
+
 app.post("/todo/add", requireLogin, (req, res) => {
   const { task } = req.body;
   const sql = "INSERT INTO todos (user_id, task) VALUES (?, ?)";
