@@ -2,7 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const session = require("express-session");
 const bodyParser = require("body-parser");
-const bcrypt = require("bcrypt"); // Import bcrypt for password hashing
+const bcrypt = require("bcrypt");
 
 const authRoutes = require("./server/routes/auth");
 const DB = require("./model/connectionSQL");
@@ -82,7 +82,7 @@ app.post("/change-password", requireLogin, async (req, res) => {
 
 app.get("/logout", (req, res) => {
   req.session.destroy(() => {
-    res.redirect("/"); // Redirect to the home page after logout
+    res.redirect("/");
   });
 });
 
@@ -90,7 +90,7 @@ app.get("/request-data", requireLogin, (req, res) => {
   const sql = "SELECT user_id, user_name, created_at, user_mode FROM users WHERE user_id = ?";
   DB.get(sql, [req.session.user.id], (err, row) => {
     if (err) {
-      console.error("Database error:", err.message); // Log the error for debugging
+      console.error("Database error:", err.message);
       return res.status(500).send("Database error");
     }
     if (!row) {
@@ -106,7 +106,7 @@ app.post("/delete-account", requireLogin, (req, res) => {
     if (err) return res.status(500).send("Failed to delete account");
 
     req.session.destroy(() => {
-      res.redirect("/"); // Redirect to the home page after account deletion
+      res.redirect("/");
     });
   });
 });
@@ -136,7 +136,7 @@ app.post("/todo/add", requireLogin, (req, res) => {
   });
 });
 
-// Delete a todo
+
 app.post("/todo/delete/:id", requireLogin, (req, res) => {
   const { id } = req.params;
   const sql = "DELETE FROM todos WHERE id = ? AND user_id = ?";
