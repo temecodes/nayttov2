@@ -3,31 +3,39 @@ const express = require("express");
 const session = require("express-session");
 const bodyParser = require("body-parser");
 const bcrypt = require("bcrypt");
+const https = require("https");
+const fs = require("fs");
 
 const authRoutes = require("./server/routes/auth");
 const DB = require("./model/connectionSQL");
 
 const app = express();
-const PORT = 5000 || process.env.PORT;
+const PORT = process.env.PORT || 3000;
 
+
+const httpsOptions = {
+  key: fs.readFileSync("server.key"),
+  cert: fs.readFileSync("server.cert"),
+};
 
 app.use(express.static("public"));
 app.use(bodyParser.json());
 app.use(express.urlencoded({ extended: true }));
 
-
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "default_secret", 
+    secret: process.env.SESSION_SECRET || "default_secret",
     resave: false,
     saveUninitialized: false,
-    cookie: { secure: false }, 
+    cookie: { secure: true }, 
   })
 );
 
+https.createServer(httpsOptions, app).listen(PORT, () => {
+  console.log(`Server running on https://localhost:${PORT}`);
+});
 
 app.set("view engine", "ejs");
-
 
 function requireLogin(req, res, next) {
   if (!req.session.user) {
@@ -35,7 +43,6 @@ function requireLogin(req, res, next) {
   }
   next();
 }
-
 
 app.use("/", authRoutes);
 
@@ -47,11 +54,9 @@ app.get("/register", (req, res) => {
   res.render("register");
 });
 
-
 app.get("/dashboard", requireLogin, (req, res) => {
   res.render("dashboard", { user: req.session.user });
 });
-
 
 app.get("/change-password", requireLogin, (req, res) => {
   res.render("change-password");
@@ -62,17 +67,22 @@ app.post("/change-password", requireLogin, async (req, res) => {
 
   const sql = "SELECT * FROM users WHERE user_id = ?";
   DB.get(sql, [req.session.user.id], async (err, row) => {
-    if (err) return res.status(500).send("Database error");
+    if (err){ 
+      return res.status(500).send("Database error");
+    }
 
     const match = await bcrypt.compare(old_password, row.user_pass);
-    if (!match) return res.status(400).send("Old password is incorrect");
+    if (!match) {
+      return res.status(400).send("Old password is incorrect");
+    }
 
     const hashedPassword = await bcrypt.hash(new_password, 10);
     const updateSql = "UPDATE users SET user_pass = ? WHERE user_id = ?";
     DB.run(updateSql, [hashedPassword, req.session.user.id], (err) => {
-      if (err) return res.status(500).send("Failed to update password");
+      if (err) {
+        return res.status(500).send("Failed to update password");
+      }
 
-      
       req.session.destroy(() => {
         res.redirect("/");
       });
@@ -103,14 +113,16 @@ app.get("/request-data", requireLogin, (req, res) => {
 app.post("/delete-account", requireLogin, (req, res) => {
   const sql = "DELETE FROM users WHERE user_id = ?";
   DB.run(sql, [req.session.user.id], (err) => {
-    if (err) return res.status(500).send("Failed to delete account");
+    if (err) {
+      console.error("Database error:", err.message);
+      return res.status(500).send("Failed to delete account");
+    }
 
     req.session.destroy(() => {
       res.redirect("/");
     });
   });
 });
-
 
 app.get("/todo", requireLogin, (req, res) => {
   const sql = "SELECT * FROM todos WHERE user_id = ?";
@@ -122,7 +134,6 @@ app.get("/todo", requireLogin, (req, res) => {
     res.render("todo", { user: req.session.user, todos: rows, page: "todo" });
   });
 });
-
 
 app.post("/todo/add", requireLogin, (req, res) => {
   const { task } = req.body;
@@ -136,19 +147,52 @@ app.post("/todo/add", requireLogin, (req, res) => {
   });
 });
 
-
-app.post("/todo/delete/:id", requireLogin, (req, res) => {
+app.post("/todo/delete/:id", (req, res) => {
   const { id } = req.params;
-  const sql = "DELETE FROM todos WHERE id = ? AND user_id = ?";
-  DB.run(sql, [id, req.session.user.id], (err) => {
+
+  const sql = "DELETE FROM todos WHERE id = ?";
+  DB.run(sql, [id], (err) => {
     if (err) {
-      console.error("Database error:", err.message);
-      return res.status(500).send("Failed to delete task");
+      console.error("Error deleting todo:", err);
+      return res.status(500).send("Internal Server Error");
     }
+    res.redirect("/todos");
+  });
+});
+
+app.post("/todo/edit/:id", requireLogin, (req, res) => {
+  const { id } = req.params;
+  const { task } = req.body;
+
+  const sql = "UPDATE todos SET task = ? WHERE id = ? AND user_id = ?";
+  DB.run(sql, [task, id, req.session.user.id], (err) => {
+    if (err) {
+      console.error("Error updating todo:", err);
+      return res.status(500).send("Failed to update todo");
+    }
+
     res.redirect("/todo");
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`App is listening on port ${PORT}`);
+app.get("/todo/edit/:id", requireLogin, (req, res) => {
+  const { id } = req.params;
+
+  const sql = "SELECT * FROM todos WHERE id = ? AND user_id = ?";
+  DB.get(sql, [id, req.session.user.id], (err, todo) => {
+    if (err) {
+      console.error("Error fetching todo for edit:", err);
+      return res.status(500).send("Failed to load edit form");
+    }
+
+    if (!todo) {
+      return res.status(404).send("Todo not found");
+    }
+
+    res.render("edit-todo", { todo });
+  });
+});
+
+app.get('/privacy', (req, res) => {
+  res.render('privacy');
 });

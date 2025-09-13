@@ -2,7 +2,7 @@
 Library    SeleniumLibrary
 
 *** Variables ***
-${BASE_URL}       http://localhost:5000
+${BASE_URL}       https://localhost:3000
 ${BROWSER}        chrome
 ${VALID_USER}     t
 ${VALID_PASS}     t
@@ -15,6 +15,8 @@ ${NEW_PASS}       newpassword
 
 Login Page - Successful Login
     Open Browser    ${BASE_URL}    ${BROWSER}
+    Click Button    id=details-button
+    Click Link      id=proceed-link
     Input Text    id=user_name    ${VALID_USER}
     Input Text    id=user_pass    ${VALID_PASS}
     Click Button    id=login_button
@@ -23,14 +25,21 @@ Login Page - Successful Login
 
 Login Page - Invalid Login
     Open Browser    ${BASE_URL}    ${BROWSER}
+    Click Button    id=details-button
+    Click Link      id=proceed-link
     Input Text    id=user_name    ${INVALID_USER}
     Input Text    id=user_pass    ${INVALID_PASS}
     Click Button    id=login_button
-    Wait Until Page Contains    Invalid credentials
+    Alert Should Be Present
+    ${alert_text}=    Get Alert Message
+    Should Contain    ${alert_text}    Invalid credentials
+    Handle Alert
     Close Browser
 
 Register Page - Successful Registration
     Open Browser    ${BASE_URL}/register    ${BROWSER}
+    Click Button    id=details-button
+    Click Link      id=proceed-link
     Input Text    id=user_name    ${NEW_USER}
     Input Text    id=user_pass    ${NEW_PASS}
     Click Button    css=button[type="submit"]
@@ -40,6 +49,8 @@ Register Page - Successful Registration
 
 Dashboard - Access Todo App
     Open Browser    ${BASE_URL}    ${BROWSER}
+    Click Button    id=details-button
+    Click Link      id=proceed-link
     Input Text    id=user_name    ${VALID_USER}
     Input Text    id=user_pass    ${VALID_PASS}
     Click Button    id=login_button
@@ -50,6 +61,8 @@ Dashboard - Access Todo App
 
 Todo App - Add and Delete Task
     Open Browser    ${BASE_URL}    ${BROWSER}
+    Click Button    id=details-button
+    Click Link      id=proceed-link
     Input Text    id=user_name    ${VALID_USER}
     Input Text    id=user_pass    ${VALID_PASS}
     Click Button    id=login_button

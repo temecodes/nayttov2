@@ -15,7 +15,7 @@ function connected(err) {
   }
   console.log("DB is already created");
 
-  DB.run(`ALTER TABLE users ADD COLUMN created_at TEXT`, [], (err) => {
+  DB.run(`ALTER TABLE users ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP`, [], (err) => { 
     if (err && !err.message.includes("duplicate column name")) {
       console.error("Error adding 'created_at' column:", err.message);
     } else if (!err) {
