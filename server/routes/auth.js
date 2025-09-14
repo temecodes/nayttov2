@@ -14,7 +14,9 @@ router.post("/login", (req, res) => {
 
   const sql = "SELECT * FROM users WHERE user_name = ?";
   DB.get(sql, [user_name], async (err, row) => {
-    if (err) return res.status(500).json({ error: "Internal error" });
+    if (err){ 
+      return res.status(500).json({ error: "Internal error" });
+    }
 
     if (!row) {
 
@@ -44,7 +46,9 @@ router.post("/register", async (req, res) => {
 
   const checkUserSql = "SELECT * FROM users WHERE user_name = ?";
   DB.get(checkUserSql, [user_name], async (err, row) => {
-    if (err) return res.status(500).json({ error: "Internal error" });
+    if (err){ 
+      return res.status(500).json({ error: "Internal error" });
+    }
 
     if (row) {
       return res.status(409).json({ error: "Username already taken" });

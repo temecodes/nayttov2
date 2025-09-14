@@ -2,11 +2,10 @@
 
 <script>
   async function handleRegister(event) {
-    event.preventDefault(); // Prevent the default form submission
+    event.preventDefault(); // this prevents the default form submission, so we do not go to another page for the "Invalid credentials" message. Instead we just a popup alert.
 
-    const form = event.target;
-    const formData = new FormData(form);
-    const data = Object.fromEntries(formData.entries());
+    const form = event.target; 
+    const data = Object.fromEntries(new FormData(form));
 
     try {
       const response = await fetch("/register", {
@@ -17,12 +16,11 @@
         body: JSON.stringify(data),
       });
 
-      if (response.ok) {
-        // Redirect to the login page or dashboard on successful registration
+      if (response.ok) { 
         window.location.href = "/dashboard";
       } else {
         const result = await response.json();
-        alert(result.error); // Show a popup with the error message
+        alert(result.error); 
       }
     } catch (err) {
       console.error("Error during registration:", err);

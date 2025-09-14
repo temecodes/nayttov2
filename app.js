@@ -13,10 +13,10 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 
-const httpsOptions = {
-  key: fs.readFileSync("server.key"),
-  cert: fs.readFileSync("server.cert"),
-};
+//const httpsOptions = {
+// key: fs.readFileSync("server.key"),
+//  cert: fs.readFileSync("server.cert"),
+//};
 
 app.use(express.static("public"));
 app.use(bodyParser.json());
@@ -27,13 +27,21 @@ app.use(
     secret: process.env.SESSION_SECRET || "default_secret",
     resave: false,
     saveUninitialized: false,
-    cookie: { secure: true }, 
+    cookie: { 
+      secure: false, 
+      httpOnly: true,
+      sameSite: "lax"
+    }, 
   })
 );
 
-https.createServer(httpsOptions, app).listen(PORT, () => {
-  console.log(`Server running on https://localhost:${PORT}`);
+app.listen(PORT, () => {
+  console.log(`HTTP server running on http://localhost:${PORT}`);
 });
+
+//https.createServer(httpsOptions, app).listen(PORT, () => {
+//  console.log(`Server running on https://localhost:${PORT}`);
+//});
 
 app.set("view engine", "ejs");
 
@@ -62,12 +70,65 @@ app.get("/change-password", requireLogin, (req, res) => {
   res.render("change-password");
 });
 
+app.get("/logout", (req, res) => {
+  req.session.destroy(() => {
+    res.redirect("/");
+  });
+});
+
+app.get('/privacy', (req, res) => {
+  res.render('privacy');
+});
+
+app.get("/request-data", requireLogin, (req, res) => {
+  const sql = "SELECT user_id, user_name, created_at, user_mode FROM users WHERE user_id = ?";
+  DB.get(sql, [req.session.user.id], (err, row) => {
+    if (err) {
+      console.error("Database error:", err.message);
+      return res.status(500).send("Database error");
+    }
+    if (!row) {
+      return res.status(404).send("User not found");
+    }
+    res.render("account-data", { user: row });
+  });
+});
+
+app.get("/todo", requireLogin, (req, res) => {
+  const sql = "SELECT * FROM todos WHERE user_id = ?";
+  DB.all(sql, [req.session.user.id], (err, rows) => {
+    if (err) {
+      console.error("Database error:", err.message);
+      return res.status(500).send("Database error");
+    }
+    res.render("todo", {todos: rows});
+  });
+});
+
+app.get("/todo/edit/:id", requireLogin, (req, res) => {
+  const { id } = req.params;
+
+  const sql = "SELECT * FROM todos WHERE id = ? AND user_id = ?";
+  DB.get(sql, [id, req.session.user.id], (err, todo) => {
+    if (err) {
+      console.error("Error fetching todo for edit:", err);
+      return res.status(500).send("Failed to load edit form");
+    }
+
+    if (!todo) {
+      return res.status(404).send("Todo not found");
+    }
+
+    res.render("edit-todo", { todo });
+  });
+});
+
 app.post("/change-password", requireLogin, async (req, res) => {
   const { old_password, new_password } = req.body;
 
   const sql = "SELECT * FROM users WHERE user_id = ?";
   DB.get(sql, [req.session.user.id], async (err, row) => {
-    if (err){ 
+    if (err) { 
       return res.status(500).send("Database error");
     }
 
@@ -90,48 +151,22 @@ app.post("/change-password", requireLogin, async (req, res) => {
   });
 });
 
-app.get("/logout", (req, res) => {
-  req.session.destroy(() => {
-    res.redirect("/");
-  });
-});
-
-app.get("/request-data", requireLogin, (req, res) => {
-  const sql = "SELECT user_id, user_name, created_at, user_mode FROM users WHERE user_id = ?";
-  DB.get(sql, [req.session.user.id], (err, row) => {
-    if (err) {
-      console.error("Database error:", err.message);
-      return res.status(500).send("Database error");
-    }
-    if (!row) {
-      return res.status(404).send("User not found");
-    }
-    res.render("account-data", { user: row });
-  });
-});
-
 app.post("/delete-account", requireLogin, (req, res) => {
-  const sql = "DELETE FROM users WHERE user_id = ?";
-  DB.run(sql, [req.session.user.id], (err) => {
+  const userId = req.session.user.id;
+  const sql1 = "DELETE FROM todos WHERE user_id = ?";
+  const sql2 = "DELETE FROM users WHERE user_id = ?";
+  DB.run(sql1, [userId], (err) => {
     if (err) {
-      console.error("Database error:", err.message);
-      return res.status(500).send("Failed to delete account");
+      console.error("Database error (todos delete):", err.message);
+      return res.status(500).send("Failed to delete related tasks");
     }
-
-    req.session.destroy(() => {
-      res.redirect("/");
+    DB.run(sql2, [userId], (err2) => {
+      if (err2) {
+        console.error("Database error (user delete):", err2.message);
+        return res.status(500).send("Failed to delete account");
+      }
+      req.session.destroy(() => res.redirect("/"));
     });
-  });
-});
-
-app.get("/todo", requireLogin, (req, res) => {
-  const sql = "SELECT * FROM todos WHERE user_id = ?";
-  DB.all(sql, [req.session.user.id], (err, rows) => {
-    if (err) {
-      console.error("Database error:", err.message);
-      return res.status(500).send("Database error");
-    }
-    res.render("todo", { user: req.session.user, todos: rows, page: "todo" });
   });
 });
 
@@ -147,16 +182,15 @@ app.post("/todo/add", requireLogin, (req, res) => {
   });
 });
 
-app.post("/todo/delete/:id", (req, res) => {
+app.post("/todo/delete/:id", requireLogin, (req, res) => {
   const { id } = req.params;
-
-  const sql = "DELETE FROM todos WHERE id = ?";
-  DB.run(sql, [id], (err) => {
+  const sql = "DELETE FROM todos WHERE id = ? AND user_id = ?";
+  DB.run(sql, [id, req.session.user.id], (err) => {
     if (err) {
       console.error("Error deleting todo:", err);
       return res.status(500).send("Internal Server Error");
     }
-    res.redirect("/todos");
+    res.redirect("/todo");
   });
 });
 
@@ -175,24 +209,5 @@ app.post("/todo/edit/:id", requireLogin, (req, res) => {
   });
 });
 
-app.get("/todo/edit/:id", requireLogin, (req, res) => {
-  const { id } = req.params;
 
-  const sql = "SELECT * FROM todos WHERE id = ? AND user_id = ?";
-  DB.get(sql, [id, req.session.user.id], (err, todo) => {
-    if (err) {
-      console.error("Error fetching todo for edit:", err);
-      return res.status(500).send("Failed to load edit form");
-    }
 
-    if (!todo) {
-      return res.status(404).send("Todo not found");
-    }
-
-    res.render("edit-todo", { todo });
-  });
-});
-
-app.get('/privacy', (req, res) => {
-  res.render('privacy');
-});

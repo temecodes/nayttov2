@@ -35,15 +35,15 @@ function connected(err) {
 };
 
 
-let sql = `CREATE TABLE IF NOT EXISTS users (
+let sqlUsers = `CREATE TABLE IF NOT EXISTS users (
     user_id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_name TEXT,
     user_pass TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     user_mode TEXT DEFAULT 'user'
-);`;
+)`;
 
-DB.run(sql, [], (err) => {
+DB.run(sqlUsers, [], (err) => {
   if (err) {
     console.log("Error while creating users table");
     return;
@@ -51,13 +51,15 @@ DB.run(sql, [], (err) => {
   console.log("Users table created or already exists");
 });
 
-DB.run(`CREATE TABLE IF NOT EXISTS todos (
+sqlTodos = `CREATE TABLE IF NOT EXISTS todos (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER,
   task TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(user_id)
-)`, (err) => {
+)`;
+
+DB.run(sqlTodos, [], (err) => {
   if (err) {
     console.error("Error creating todos table:", err.message);
   } else {
