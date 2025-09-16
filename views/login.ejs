@@ -1,11 +1,10 @@
   <%- include("partials/header.ejs") %>
   <script>
-    async function handleLogin(event) {
+    async function handleLogin(event) { // Handles the loging that comes from login form
       event.preventDefault(); // Prevent the browser to execute the default form submission
 
       const form = event.target;
-      const formData = new FormData(form);
-      const data = Object.fromEntries(formData.entries());
+      const data = Object.fromEntries(new FormData(form));
 
       try {
         const response = await fetch("/login", {

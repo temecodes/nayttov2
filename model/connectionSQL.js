@@ -6,7 +6,7 @@ const path = require("path");
 
 const dbPath = path.join(__dirname, "login.db");
 
-const DB = new sql3.Database(dbPath, sqlite3.OPEN_READWRITE, connected);
+const DB = new sql3.Database(dbPath, sqlite3.OPEN_READWRITE, connected); // read-write mode
 
 function connected(err) {
   if (err) {

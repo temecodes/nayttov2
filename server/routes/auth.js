@@ -19,7 +19,6 @@ router.post("/login", (req, res) => {
     }
 
     if (!row) {
-
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
@@ -55,7 +54,7 @@ router.post("/register", async (req, res) => {
     }
 
     try {
-      const hashedPass = await bcrypt.hash(user_pass, 10); // 10 salt rounds, mitä isompi numero sitä hitaampi mutta turvallisempi
+      const hashedPass = await bcrypt.hash(user_pass, 10); // 10 salt rounds larger this is more secure but slower it is
 
       const insertUserSql = `
         INSERT INTO users (user_name, user_pass, user_mode, created_at) 

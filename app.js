@@ -24,7 +24,7 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "default_secret",
+    secret: process.env.SESSION_SECRET || "SecretKey",
     resave: false,
     saveUninitialized: false,
     cookie: { 
@@ -52,7 +52,7 @@ function requireLogin(req, res, next) {
   next();
 }
 
-app.use("/", authRoutes);
+app.use("/", authRoutes); // auth routes
 
 app.get("", (req, res) => {
   res.render("login");
@@ -81,8 +81,8 @@ app.get('/privacy', (req, res) => {
 });
 
 app.get("/request-data", requireLogin, (req, res) => {
-  const sql = "SELECT user_id, user_name, created_at, user_mode FROM users WHERE user_id = ?";
-  DB.get(sql, [req.session.user.id], (err, row) => {
+  const sql = "SELECT user_id, user_name, created_at, user_mode FROM users WHERE user_id = ?"; 
+  DB.get(sql, [req.session.user.id], (err, row) => { // finds current session user from database
     if (err) {
       console.error("Database error:", err.message);
       return res.status(500).send("Database error");
@@ -153,14 +153,14 @@ app.post("/change-password", requireLogin, async (req, res) => {
 
 app.post("/delete-account", requireLogin, (req, res) => {
   const userId = req.session.user.id;
-  const sql1 = "DELETE FROM todos WHERE user_id = ?";
-  const sql2 = "DELETE FROM users WHERE user_id = ?";
-  DB.run(sql1, [userId], (err) => {
+  const sqlTodo = "DELETE FROM todos WHERE user_id = ?";
+  const sqlUsers = "DELETE FROM users WHERE user_id = ?";
+  DB.run(sqlTodo, [userId], (err) => {
     if (err) {
       console.error("Database error (todos delete):", err.message);
       return res.status(500).send("Failed to delete related tasks");
     }
-    DB.run(sql2, [userId], (err2) => {
+    DB.run(sqlUsers, [userId], (err2) => {
       if (err2) {
         console.error("Database error (user delete):", err2.message);
         return res.status(500).send("Failed to delete account");

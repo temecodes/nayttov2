@@ -4,8 +4,8 @@ Suite Setup    Set Selenium Speed    0.2s
 Suite Teardown    Close All Browsers
 
 *** Variables ***
-${BASE_URL}       https://localhost:3000
-${BROWSER}        chrome
+${BASE_URL}       http://localhost:3000
+${BROWSER}        edge
 ${VALID_USER}     t
 ${VALID_PASS}     t
 ${INVALID_USER}   eitoimi
@@ -57,7 +57,7 @@ Todo - Add And Delete Task
     Input Text    name=task    My First Task
     Click Button    id=add_button
     Wait Until Page Contains    My First Task    ${TIMEOUT}
-    Click Button    id=delete_37
+    Click Button    id=delete_63
     Wait Until Page Does Not Contain    My First Task    ${TIMEOUT}
 
 Logout - Session Ends
